@@ -18,6 +18,7 @@ function error {
 
 echo "Starting $(basename "${BASH_SOURCE[0]}")"
 
+
 ####################################
 #    ENV SETUP & VERIFICATION      #
 ####################################
