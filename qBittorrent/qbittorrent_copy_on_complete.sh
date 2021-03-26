@@ -16,6 +16,8 @@ function error {
     exit 1
 }
 
+echo "Starting $(basename "${BASH_SOURCE[0]}")"
+
 ####################################
 #    ENV SETUP & VERIFICATION      #
 ####################################
@@ -41,6 +43,8 @@ if [ -z "${QBIT_WEBUI_USER}" ];  then error "QBIT_WEBUI_USER is not set. Is qbit
 # not checking QBIT_WEBUI_PASS to allow for bypassed authentication from localhost/LAN
 if [ -z "${QBIT_CATEGORIES}" ];  then error "QBIT_CATEGORIES is not set. Is qbittorrent.env in the same directory as this script?"; fi;
 if [ -z "${QBIT_COPY_TO_DIR}" ]; then error "QBIT_COPY_TO_DIR is not set. Is qbittorrent.env in the same directory as this script?"; fi;
+if [ -z "${QBIT_SEED_RATIO}" ]; then error "QBIT_SEED_RATIO is not set. Is qbittorrent.env in the same directory as this script?"; fi;
+if [ -z "${QBIT_SEED_TIME}" ]; then error "QBIT_SEED_TIME is not set. Is qbittorrent.env in the same directory as this script?"; fi;
 
 # setup API root address
 readonly QBIT_ADDRESS="http://${QBIT_HOST}:${QBIT_WEBUI_PORT}"
@@ -86,22 +90,19 @@ fi
 #              COPY                #
 ####################################
 
-cp -r "${TORRENT_PATH}" "${QBIT_COPY_TO_DIR}"
+#recursive copy and preserve attributes
+cp -rp "${TORRENT_PATH}" "${QBIT_COPY_TO_DIR}"
 
 
+####################################
+#    SET SHARE LIMITES & RESUME    #
+####################################
 
-# get torrent category
-# jq manual: https://stedolan.github.io/jq/manual/#Basicfilters
+# set limits
+echo "${AUTH_COOKIE}" | curl --silent --fail --show-error --cookie - --request POST "${QBIT_API_ROOT}/torrents/setShareLimits?hashes=${TORRENT_HASH}&ratioLimit=${QBIT_SEED_RATIO}&seedingTimeLimit=${QBIT_SEED_TIME}"
 
-
-
-# if [ $(basename ${save_path}) == "arr" ] ????
-# or: if category in (radarr, sonarr) ???
-#TODO
-# copy torrent to /data/3-copied/arr
-
-# Set torrent share limit
-# https://github.com/qbittorrent/qBittorrent/wiki/WebUI-API-(qBittorrent-4.1)#set-torrent-share-limit
+#resume torrent
+echo "${AUTH_COOKIE}" | curl --silent --fail --show-error --cookie - --request POST "${QBIT_API_ROOT}/torrents/resume?hashes=${TORRENT_HASH}"
 
 
 ####################################
