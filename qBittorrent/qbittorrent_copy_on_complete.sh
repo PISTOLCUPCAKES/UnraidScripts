@@ -86,7 +86,7 @@ fi
 #              COPY                #
 ####################################
 
-cp -r "${TORRENT_PATH}" "${COPY_TO_DIR}"
+cp -r "${TORRENT_PATH}" "${QBIT_COPY_TO_DIR}"
 
 
 
