@@ -1,62 +1,82 @@
-#!/bin/bash
-
-set -e
+#!/bin/bash -eu
 
 # ------------------------------------------------------------------------------
 # Script        | qbittorrent_copy_on_complete.sh
 # Description   | Script to copy a completed torrent to another directory
 #                   and resume the torrent
-# qbittorrent command: qbittorrent_copy_on_complete.sh '%R' '%D'
+# qbittorrent command: qbittorrent_copy_on_complete.sh '%I' '%R'
+#
+# Requires:
+#               jq - https://stedolan.github.io/jq/
 # ------------------------------------------------------------------------------
 
-####################################
-#                                  #
-####################################
+
+function error {
+    echo "ERROR:  ${1:-}"
+    exit 1
+}
 
 ####################################
-#           ENV SETUP              #
+#    ENV SETUP & VERIFICATION      #
 ####################################
 
+# get script parameters
+readonly TORRENT_HASH="$1"
+readonly TORRENT_PATH="$2"
+
+# Verify parameters were provided
+if [ -z "${TORRENT_HASH}" ]; then error "Torrent Hash not provided"; fi;
+if [ -z "${TORRENT_PATH}" ]; then error "Torrent Path not provided"; fi;
+
+# get script location so we know where to find qbittorrent.env, then source it
 readonly SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")"; pwd)"
 
 # shellcheck source=qbittorrent.env
 . "${SCRIPT_DIR}"/qbittorrent.env
 
-readonly TORRENT_PATH="$1"
-readonly SAVE_PATH=%D
+# Verify qbittorrent.env was sourced correctly
+if [ -z "${QBIT_HOST}" ];        then error "QBIT_HOST is not set. Is qbittorrent.env in the same directory as this script?"; fi;
+if [ -z "${QBIT_WEBUI_PORT}" ];  then error "QBIT_WEBUI_PORT is not set. Is qbittorrent.env in the same directory as this script?"; fi;
+if [ -z "${QBIT_WEBUI_USER}" ];  then error "QBIT_WEBUI_USER is not set. Is qbittorrent.env in the same directory as this script?"; fi;
+# not checking QBIT_WEBUI_PASS to allow for bypassed authentication from localhost/LAN
+if [ -z "${QBIT_CATEGORIES}" ];  then error "QBIT_CATEGORIES is not set. Is qbittorrent.env in the same directory as this script?"; fi;
+if [ -z "${QBIT_COPY_TO_DIR}" ]; then error "QBIT_COPY_TO_DIR is not set. Is qbittorrent.env in the same directory as this script?"; fi;
+
+# setup API root address
+readonly QBIT_ADDRESS="http://${QBIT_HOST}:${QBIT_WEBUI_PORT}"
+readonly QBIT_API_ROOT="${QBIT_ADDRESS}/api/v2"
+
+# make sure jq is available. It is necessary for parsing json responses
+if ! [ -x "$(command -v jq)" ]; then error "jq is not in the path or installed"; fi;
+
 
 ####################################
-#         VERIFY OPTIONS           #
+#             API AUTH             #
 ####################################
+
+# readonly AUTH_COOKIE=$(curl --silent --fail --show-error --header "Referer: $host" --cookie-jar - --request GET "$host/api/v2/auth/login?username=$username&password=$password")
+readonly AUTH_COOKIE=$(curl --silent --fail --show-error --header "Referer: ${QBIT_ADDRESS}" --cookie-jar - --data "username=${QBIT_WEBUI_USER}&password=${QBIT_WEBUI_PASS}" --request GET "${QBIT_API_ROOT}/auth/login")
+
+
+####################################
+#         GET TORRENT INFO         #
+####################################
+
+readonly TORRENT_CATEGORY=$(echo "${AUTH_COOKIE}" | curl --silent --fail --show-error --cookie - --request GET "${QBIT_API_ROOT}/torrents/info?hashes=${TORRENT_HASH}" | jq --raw-output .[0].category)
+echo "${TORRENT_CATEGORY}"
+exit
 
 
 ####################################
 #              COPY                #
 ####################################
 
-cp -r "${TORRENT_PATH}" "${COPY_TO_DIR}"
+# cp -r "${TORRENT_PATH}" "${COPY_TO_DIR}"
 
 
 
-category="$(basename $1)"
-torrent_hash="$2"
-torrent_name="$3"
-
-
-
-
-host="http://localhost:8280"
-username="admin"
-password=""
-
-
-# https://github.com/qbittorrent/qBittorrent/wiki/WebUI-API-(qBittorrent-4.1)#get-torrent-list
-
-# get auth cookie
-cookie=$(curl --silent --fail --show-error --header "Referer: $host" --cookie-jar - --request GET "$host/api/v2/auth/login?username=$username&password=$password")
-
-# get torrents info (just an example of using cookie)
-echo "$cookie" | curl --silent --fail --show-error --cookie - --request GET "$host/api/v2/torrents/info"
+# get torrent category
+# jq manual: https://stedolan.github.io/jq/manual/#Basicfilters
 
 
 
@@ -65,4 +85,10 @@ echo "$cookie" | curl --silent --fail --show-error --cookie - --request GET "$ho
 #TODO
 # copy torrent to /data/3-copied/arr
 
+# Set torrent share limit
+# https://github.com/qbittorrent/qBittorrent/wiki/WebUI-API-(qBittorrent-4.1)#set-torrent-share-limit
 
+
+####################################
+#                                  #
+####################################
