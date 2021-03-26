@@ -54,16 +54,33 @@ if ! [ -x "$(command -v jq)" ]; then error "jq is not in the path or installed";
 #             API AUTH             #
 ####################################
 
-# readonly AUTH_COOKIE=$(curl --silent --fail --show-error --header "Referer: $host" --cookie-jar - --request GET "$host/api/v2/auth/login?username=$username&password=$password")
+# login to qbittorrent and save the authentication cookie for future use
 readonly AUTH_COOKIE=$(curl --silent --fail --show-error --header "Referer: ${QBIT_ADDRESS}" --cookie-jar - --data "username=${QBIT_WEBUI_USER}&password=${QBIT_WEBUI_PASS}" --request GET "${QBIT_API_ROOT}/auth/login")
 
 
 ####################################
-#         GET TORRENT INFO         #
+#   GET CATEGORY AND PROCEED/EXIT  #
 ####################################
 
+# get the category for this torrent
 readonly TORRENT_CATEGORY=$(echo "${AUTH_COOKIE}" | curl --silent --fail --show-error --cookie - --request GET "${QBIT_API_ROOT}/torrents/info?hashes=${TORRENT_HASH}" | jq --raw-output .[0].category)
-echo "${TORRENT_CATEGORY}"
+
+# check to see if the torrents category is in the list of categories to process, if not then exit
+PROCEED=false
+for c in "${QBIT_CATEGORIES[@]}"
+do
+    if [ "${c}" = "${TORRENT_CATEGORY}" ]
+    then
+        PROCEED=true
+    fi
+done
+
+if [ "${PROCEED}" = "false" ]
+then
+    echo "exit"
+else
+    echo "proceed"
+fi
 exit
 
 
