@@ -77,18 +77,16 @@ done
 
 if [ "${PROCEED}" = "false" ]
 then
-    echo "exit"
-else
-    echo "proceed"
+    echo "This torrent's category is not in the list of categories to process. Skipping..."
+    exit
 fi
-exit
 
 
 ####################################
 #              COPY                #
 ####################################
 
-# cp -r "${TORRENT_PATH}" "${COPY_TO_DIR}"
+cp -r "${TORRENT_PATH}" "${COPY_TO_DIR}"
 
 
 
