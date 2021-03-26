@@ -59,6 +59,7 @@ if ! [ -x "$(command -v jq)" ]; then error "jq is not in the path or installed";
 ####################################
 
 # login to qbittorrent and save the authentication cookie for future use
+echo "Logging into qbittorrent..."
 readonly AUTH_COOKIE=$(curl --silent --fail --show-error --header "Referer: ${QBIT_ADDRESS}" --cookie-jar - --data "username=${QBIT_WEBUI_USER}&password=${QBIT_WEBUI_PASS}" --request GET "${QBIT_API_ROOT}/auth/login")
 
 
@@ -67,6 +68,7 @@ readonly AUTH_COOKIE=$(curl --silent --fail --show-error --header "Referer: ${QB
 ####################################
 
 # get the category for this torrent
+echo "Retrieving torrent category..."
 readonly TORRENT_CATEGORY=$(echo "${AUTH_COOKIE}" | curl --silent --fail --show-error --cookie - --request GET "${QBIT_API_ROOT}/torrents/info?hashes=${TORRENT_HASH}" | jq --raw-output .[0].category)
 
 # check to see if the torrents category is in the list of categories to process, if not then exit
@@ -99,9 +101,11 @@ cp -rp "${TORRENT_PATH}" "${QBIT_COPY_TO_DIR}"
 ####################################
 
 # set limits
+echo "Setting share limits..."
 echo "${AUTH_COOKIE}" | curl --silent --fail --show-error --cookie - --request POST "${QBIT_API_ROOT}/torrents/setShareLimits?hashes=${TORRENT_HASH}&ratioLimit=${QBIT_SEED_RATIO}&seedingTimeLimit=${QBIT_SEED_TIME}"
 
 #resume torrent
+echo "Resuming torrent..."
 echo "${AUTH_COOKIE}" | curl --silent --fail --show-error --cookie - --request POST "${QBIT_API_ROOT}/torrents/resume?hashes=${TORRENT_HASH}"
 
 
