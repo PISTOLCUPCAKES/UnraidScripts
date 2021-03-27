@@ -24,8 +24,8 @@ echo "Starting $(basename "${BASH_SOURCE[0]}")"
 ####################################
 
 # get script parameters
-readonly TORRENT_HASH="$1"
-readonly TORRENT_PATH="$2"
+readonly TORRENT_HASH=$1
+readonly TORRENT_PATH=$2
 
 # Verify parameters were provided
 if [ -z "${TORRENT_HASH}" ]; then error "Torrent Hash not provided"; fi;
