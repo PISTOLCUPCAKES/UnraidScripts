@@ -10,6 +10,16 @@
 #               jq - https://stedolan.github.io/jq/
 # ------------------------------------------------------------------------------
 
+# get script parameters
+readonly TORRENT_HASH="$1"
+readonly TORRENT_PATH="$2"
+
+# find our working directory
+readonly SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")"; pwd)"
+
+# redirect stdout and stderr to log file. This is necessary because apparently qbit doesn't like to redirect output
+exec > "${SCRIPT_DIR}"/copy_on_complete.log
+exec 2>&1
 
 function error {
     echo "ERROR:  ${1:-}"
@@ -23,16 +33,9 @@ echo "Starting $(basename "${BASH_SOURCE[0]}")"
 #    ENV SETUP & VERIFICATION      #
 ####################################
 
-# get script parameters
-readonly TORRENT_HASH="$1"
-readonly TORRENT_PATH="$2"
-
 # Verify parameters were provided
 if [ -z "${TORRENT_HASH}" ]; then error "Torrent Hash not provided"; fi;
 if [ -z "${TORRENT_PATH}" ]; then error "Torrent Path not provided"; fi;
-
-# get script location so we know where to find qbittorrent.env, then source it
-readonly SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")"; pwd)"
 
 # shellcheck source=qbittorrent.env
 . "${SCRIPT_DIR}"/qbittorrent.env
