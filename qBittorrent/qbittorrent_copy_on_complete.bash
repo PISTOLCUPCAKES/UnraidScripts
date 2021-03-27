@@ -1,10 +1,10 @@
 #!/bin/bash -eu
 
 # ------------------------------------------------------------------------------
-# Script        | qbittorrent_copy_on_complete.sh
+# Script        | qbittorrent_copy_on_complete.bash
 # Description   | Script to copy a completed torrent to another directory
 #                   and resume the torrent
-# qbittorrent command: qbittorrent_copy_on_complete.sh '%I' '%R'
+# qbittorrent command: /data/scripts/qbittorrent_copy_on_complete.bash "%I" "%R"
 #
 # Requires:
 #               jq - https://stedolan.github.io/jq/
@@ -24,8 +24,8 @@ echo "Starting $(basename "${BASH_SOURCE[0]}")"
 ####################################
 
 # get script parameters
-readonly TORRENT_HASH=$1
-readonly TORRENT_PATH=$2
+readonly TORRENT_HASH="$1"
+readonly TORRENT_PATH="$2"
 
 # Verify parameters were provided
 if [ -z "${TORRENT_HASH}" ]; then error "Torrent Hash not provided"; fi;
