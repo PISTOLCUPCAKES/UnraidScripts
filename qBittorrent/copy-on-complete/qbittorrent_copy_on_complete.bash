@@ -16,9 +16,10 @@ readonly TORRENT_PATH="$2"
 
 # find our working directory
 readonly SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")"; pwd)"
+readonly SCRIPT_NAME="$(basename "${BASH_SOURCE[0]}")"
 
-# redirect stdout and stderr to log file. This is necessary because apparently qbit doesn't like to redirect output
-exec > "${SCRIPT_DIR}"/copy_on_complete.log
+# redireout output
+exec >> "${SCRIPT_DIR}/${SCRIPT_NAME}.log"
 exec 2>&1
 
 function error {
