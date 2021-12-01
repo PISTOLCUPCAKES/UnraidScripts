@@ -99,7 +99,7 @@ fi
 
 #recursive copy and preserve attributes
 echo "Coppying torrent..."
-cp -rp "${TORRENT_PATH}" "${QBIT_COPY_TO_DIR}"
+cp -rp --link "${TORRENT_PATH}" "${QBIT_COPY_TO_DIR}"
 
 
 ####################################
