@@ -65,7 +65,7 @@ if ! [ -x "$(command -v jq)" ]; then error "jq is not in the path or installed";
 
 # login to qbittorrent and save the authentication cookie for future use
 echo "Logging into qbittorrent..."
-readonly AUTH_COOKIE=$(curl --silent --fail --show-error --header "Referer: ${QBIT_ADDRESS}" --cookie-jar - --data "username=${QBIT_WEBUI_USER}&password=${QBIT_WEBUI_PASS}" --request GET "${QBIT_API_ROOT}/auth/login")
+readonly AUTH_COOKIE=$(curl --silent --fail --show-error --header "Referer: ${QBIT_ADDRESS}" --cookie-jar - --data "username=${QBIT_WEBUI_USER}&password=${QBIT_WEBUI_PASS}" --request POST "${QBIT_API_ROOT}/auth/login")
 
 
 ####################################
