@@ -108,11 +108,11 @@ cp -rp --link "${TORRENT_PATH}" "${QBIT_COPY_TO_DIR}"
 
 # set limits
 echo "Setting share limits..."
-echo "${AUTH_COOKIE}" | curl --silent --fail --show-error --cookie - --request GET "${QBIT_API_ROOT}/torrents/setShareLimits?hashes=${TORRENT_HASH}&ratioLimit=${QBIT_SEED_RATIO}&seedingTimeLimit=${QBIT_SEED_TIME}"
+echo "${AUTH_COOKIE}" | curl --silent --fail --show-error --cookie - --request POST "${QBIT_API_ROOT}/torrents/setShareLimits" --data-urlencode "hashes=${TORRENT_HASH}" --data-urlencode "ratioLimit=${QBIT_SEED_RATIO}" --data-urlencode "seedingTimeLimit=${QBIT_SEED_TIME}" --data-urlencode "inactiveSeedingTimeLimit=${QBIT_INACTIVE_SEEDING_TIME_LIMIT}"
 
 #resume torrent
 echo "Resuming torrent..."
-echo "${AUTH_COOKIE}" | curl --silent --fail --show-error --cookie - --request GET "${QBIT_API_ROOT}/torrents/resume?hashes=${TORRENT_HASH}"
+echo "${AUTH_COOKIE}" | curl --silent --fail --show-error --cookie - --request POST "${QBIT_API_ROOT}/torrents/resume" --data-urlencode "hashes=${TORRENT_HASH}"
 
 
 echo "Finished $(basename "${BASH_SOURCE[0]}")"
