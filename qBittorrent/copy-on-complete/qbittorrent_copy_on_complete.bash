@@ -14,9 +14,12 @@
 readonly TORRENT_HASH="$1"
 readonly TORRENT_PATH="$2"
 
-# find our working directory
-readonly SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")"; pwd)"
-readonly SCRIPT_NAME="$(basename "${BASH_SOURCE[0]}")"
+# find our working directory & script name
+SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")"; pwd)"
+readonly SCRIPT_DIR
+
+SCRIPT_NAME="$(basename "${BASH_SOURCE[0]}")"
+readonly SCRIPT_NAME
 
 # redireout output
 exec >> "${SCRIPT_DIR}/${SCRIPT_NAME}.log"
@@ -28,6 +31,8 @@ function error {
 }
 
 echo "Starting $(basename "${BASH_SOURCE[0]}")"
+echo "TORRENT_HASH: ${TORRENT_HASH}"
+echo "TORRENT_PATH: ${TORRENT_PATH}"
 
 
 ####################################
@@ -36,7 +41,6 @@ echo "Starting $(basename "${BASH_SOURCE[0]}")"
 
 # Verify parameters were provided
 if [ -z "${TORRENT_HASH}" ]; then error "Torrent Hash not provided"; fi;
-if [ -z "${TORRENT_PATH}" ]; then error "Torrent Path not provided"; fi;
 
 # shellcheck source=qbittorrent.env
 . "${SCRIPT_DIR}"/qbittorrent.env
@@ -65,16 +69,22 @@ if ! [ -x "$(command -v jq)" ]; then error "jq is not in the path or installed";
 
 # login to qbittorrent and save the authentication cookie for future use
 echo "Logging into qbittorrent..."
-readonly AUTH_COOKIE=$(curl --silent --fail --show-error --header "Referer: ${QBIT_ADDRESS}" --cookie-jar - --data "username=${QBIT_WEBUI_USER}&password=${QBIT_WEBUI_PASS}" --request POST "${QBIT_API_ROOT}/auth/login")
+AUTH_COOKIE=$(curl --silent --fail --show-error --header "Referer: ${QBIT_ADDRESS}" --cookie-jar - --data "username=${QBIT_WEBUI_USER}&password=${QBIT_WEBUI_PASS}" --request POST "${QBIT_API_ROOT}/auth/login")
+readonly AUTH_COOKIE
 
 
 ####################################
 #   GET CATEGORY AND PROCEED/EXIT  #
 ####################################
 
-# get the category for this torrent
-echo "Retrieving torrent category..."
-readonly TORRENT_CATEGORY=$(echo "${AUTH_COOKIE}" | curl --silent --fail --show-error --cookie - --request GET "${QBIT_API_ROOT}/torrents/info?hashes=${TORRENT_HASH}" | jq --raw-output .[0].category)
+# get the torrent info
+echo "Retrieving torrent info..."
+TORRENT_INFO=$(echo "${AUTH_COOKIE}" | curl --silent --fail --show-error --cookie - --request GET "${QBIT_API_ROOT}/torrents/info?hashes=${TORRENT_HASH}")
+readonly TORRENT_INFO
+
+# parse json response to get torrent category
+TORRENT_CATEGORY=$(echo "${TORRENT_INFO}" | jq --raw-output .[0].category)
+readonly TORRENT_CATEGORY
 
 # check to see if the torrents category is in the list of categories to process, if not then exit
 PROCEED=false
@@ -97,9 +107,20 @@ fi
 #              COPY                #
 ####################################
 
-#recursive copy and preserve attributes
-echo "Coppying torrent..."
-cp -rp --link "${TORRENT_PATH}" "${QBIT_COPY_TO_DIR}"
+if [ -n "${TORRENT_PATH}" ] # TORRENT_PATH was provided
+then
+    # -r : recursive
+    # -p : preserve attributes (mode/persmissions, ownership, timestamps)
+    # --link : hard link instead of copying
+    echo "Copying recursively from ${TORRENT_PATH} to ${QBIT_COPY_TO_DIR}..."
+    cp -rp --link "${TORRENT_PATH}" "${QBIT_COPY_TO_DIR}"
+else
+    echo "Torrent path was not provided, using content_path from torrent info"
+    TORRENT_CONTENT_PATH=$(echo "${TORRENT_INFO}" | jq --raw-output .[0].content_path)
+    readonly TORRENT_CONTENT_PATH
+    echo "Copying recursively from ${TORRENT_CONTENT_PATH} to ${QBIT_COPY_TO_DIR}..."
+    cp -rp --link "${TORRENT_CONTENT_PATH}" "${QBIT_COPY_TO_DIR}"
+fi
 
 
 ####################################
