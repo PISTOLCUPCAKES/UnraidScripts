@@ -117,7 +117,6 @@ do
     do
         if [ "${st}" = "${t}" ]
         then
-            echo "DEBUG - torrent's tag ${t} matched transcode skip tag ${st}"
             TRANSCODE=false
         fi
     done
