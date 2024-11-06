@@ -160,7 +160,7 @@ echo "${AUTH_COOKIE}" | curl --silent --fail --show-error --cookie - --request P
 
 # resume torrent
 echo "Resuming torrent..."
-echo "${AUTH_COOKIE}" | curl --silent --fail --show-error --cookie - --request POST "${QBIT_API_ROOT}/torrents/resume" --data-urlencode "hashes=${TORRENT_HASH}"
+echo "${AUTH_COOKIE}" | curl --silent --fail --show-error --cookie - --request POST "${QBIT_API_ROOT}/torrents/start" --data-urlencode "hashes=${TORRENT_HASH}"
 
 
 echo "Finished $(basename "${BASH_SOURCE[0]}")"
