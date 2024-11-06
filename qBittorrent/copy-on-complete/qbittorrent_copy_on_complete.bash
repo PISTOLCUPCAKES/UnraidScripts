@@ -42,16 +42,18 @@ echo "TORRENT_PATH: ${TORRENT_PATH}"
 # Verify parameters were provided
 if [ -z "${TORRENT_HASH}" ]; then error "Torrent Hash not provided"; fi;
 
-# shellcheck source=qbittorrent.env
-. "${SCRIPT_DIR}"/qbittorrent.env
+# shellcheck source=.qbittorrent.env
+. "${SCRIPT_DIR}"/.qbittorrent.env
 
 # Verify qbittorrent.env was sourced correctly
 if [ -z "${QBIT_HOST}" ];        then error "QBIT_HOST is not set. Is qbittorrent.env in the same directory as this script?"; fi;
 if [ -z "${QBIT_WEBUI_PORT}" ];  then error "QBIT_WEBUI_PORT is not set. Is qbittorrent.env in the same directory as this script?"; fi;
 if [ -z "${QBIT_WEBUI_USER}" ];  then error "QBIT_WEBUI_USER is not set. Is qbittorrent.env in the same directory as this script?"; fi;
 # not checking QBIT_WEBUI_PASS to allow for bypassed authentication from localhost/LAN
-if [ -z "${QBIT_CATEGORIES}" ];  then error "QBIT_CATEGORIES is not set. Is qbittorrent.env in the same directory as this script?"; fi;
-if [ -z "${QBIT_COPY_TO_DIR}" ]; then error "QBIT_COPY_TO_DIR is not set. Is qbittorrent.env in the same directory as this script?"; fi;
+if [ -z "${QBIT_AUTOMATED_CATEGORIES}" ];  then error "QBIT_AUTOMATED_CATEGORIES is not set. Is qbittorrent.env in the same directory as this script?"; fi;
+if [ -z "${QBIT_TRANSCODE_SKIP_TAGS}" ];  then error "QBIT_TRANSCODE_SKIP_TAGS is not set. Is qbittorrent.env in the same directory as this script?"; fi;
+if [ -z "${QBIT_TRANSCODE_DIR}" ]; then error "QBIT_TRANSCODE_DIR is not set. Is qbittorrent.env in the same directory as this script?"; fi;
+if [ -z "${QBIT_TRANSCODE_SKIP_DIR}" ]; then error "QBIT_TRANSCODE_SKIP_DIR is not set. Is qbittorrent.env in the same directory as this script?"; fi;
 if [ -z "${QBIT_SEED_RATIO}" ]; then error "QBIT_SEED_RATIO is not set. Is qbittorrent.env in the same directory as this script?"; fi;
 if [ -z "${QBIT_SEED_TIME}" ]; then error "QBIT_SEED_TIME is not set. Is qbittorrent.env in the same directory as this script?"; fi;
 
@@ -86,9 +88,13 @@ readonly TORRENT_INFO
 TORRENT_CATEGORY=$(echo "${TORRENT_INFO}" | jq --raw-output .[0].category)
 readonly TORRENT_CATEGORY
 
+# parse json response to get torrent tags
+TORRENT_TAGS=$(echo "${TORRENT_INFO}" | jq --raw-output .[0].tags)
+readonly TORRENT_TAGS
+
 # check to see if the torrents category is in the list of categories to process, if not then exit
 PROCEED=false
-for c in "${QBIT_CATEGORIES[@]}"
+for c in "${QBIT_AUTOMATED_CATEGORIES[@]}"
 do
     if [ "${c}" = "${TORRENT_CATEGORY}" ]
     then
@@ -102,24 +108,45 @@ then
     exit
 fi
 
+# check torrents tag to see if we should transcode or skip
+
+TRANSCODE=true
+for st in "${QBIT_TRANSCODE_SKIP_TAGS[@]}"
+do
+    for t in $(echo $TORRENT_TAGS | tr "," "\n")
+    do
+        if [ "${st}" = "${t}" ]
+        then
+            echo "DEBUG - torrent's tag ${t} matched transcode skip tag ${st}"
+            TRANSCODE=false
+        fi
+    done
+done
 
 ####################################
 #              COPY                #
 ####################################
+
+TARGET_DIR="${QBIT_TRANSCODE_DIR}"
+if [ "${TRANSCODE}" = "false" ]
+then
+    echo "This torrent will not be transcoded due to its category."
+    TARGET_DIR="${QBIT_TRANSCODE_SKIP_DIR}"
+fi
 
 if [ -n "${TORRENT_PATH}" ] # TORRENT_PATH was provided
 then
     # -r : recursive
     # -p : preserve attributes (mode/persmissions, ownership, timestamps)
     # --link : hard link instead of copying
-    echo "Copying recursively from ${TORRENT_PATH} to ${QBIT_COPY_TO_DIR}..."
-    cp -rp --link "${TORRENT_PATH}" "${QBIT_COPY_TO_DIR}"
+    echo "Copying recursively from ${TORRENT_PATH} to ${TARGET_DIR}..."
+    cp -rp --link "${TORRENT_PATH}" "${TARGET_DIR}"
 else
     echo "Torrent path was not provided, using content_path from torrent info"
     TORRENT_CONTENT_PATH=$(echo "${TORRENT_INFO}" | jq --raw-output .[0].content_path)
     readonly TORRENT_CONTENT_PATH
-    echo "Copying recursively from ${TORRENT_CONTENT_PATH} to ${QBIT_COPY_TO_DIR}..."
-    cp -rp --link "${TORRENT_CONTENT_PATH}" "${QBIT_COPY_TO_DIR}"
+    echo "Copying recursively from ${TORRENT_CONTENT_PATH} to ${TARGET_DIR}..."
+    cp -rp --link "${TORRENT_CONTENT_PATH}" "${TARGET_DIR}"
 fi
 
 
@@ -131,7 +158,7 @@ fi
 echo "Setting share limits..."
 echo "${AUTH_COOKIE}" | curl --silent --fail --show-error --cookie - --request POST "${QBIT_API_ROOT}/torrents/setShareLimits" --data-urlencode "hashes=${TORRENT_HASH}" --data-urlencode "ratioLimit=${QBIT_SEED_RATIO}" --data-urlencode "seedingTimeLimit=${QBIT_SEED_TIME}" --data-urlencode "inactiveSeedingTimeLimit=${QBIT_INACTIVE_SEEDING_TIME_LIMIT}"
 
-#resume torrent
+# resume torrent
 echo "Resuming torrent..."
 echo "${AUTH_COOKIE}" | curl --silent --fail --show-error --cookie - --request POST "${QBIT_API_ROOT}/torrents/resume" --data-urlencode "hashes=${TORRENT_HASH}"
 
